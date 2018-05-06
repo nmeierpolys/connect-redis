@@ -194,4 +194,28 @@ test('serializer', function (t) {
   return lifecycleTest(store, t);
 });
 
+test('serializer async', P.coroutine(function *(t) {
+  var serializer = {
+    stringifyAsync: function(x, callback) {
+        return callback(null, 'XXX'+JSON.stringify(x));
+    },
+    parse: function(x) {
+      t.ok(x.match(/^XXX/));
+      return JSON.parse(x.substring(3));
+    },
+    parseAsync: function(x, callback) {
+      t.ok(x.match(/^XXX/));
+      return callback(null, JSON.parse(x.substring(3)));
+    }
+  };
+  var serialized = yield P.fromCallback((callback) => serializer.stringifyAsync('UnitTest', callback));
+  t.equal(P.fromCallback((callback) => serializer.stringifyAsync('UnitTest', callback)), 'XXX"UnitTest"');
+
+  var parsed = yield P.fromCallback((callback) => serializer.parseAsync(serialized, callback));
+  t.equal(parsed, 'UnitTest');
+
+  var store = new RedisStore({ port: redisSrv.port, serializer });
+  return lifecycleTest(store, t);
+}));
+
 test('teardown', redisSrv.disconnect);
